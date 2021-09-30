@@ -15,7 +15,6 @@ from datetime import datetime
 from functools import wraps
 
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
     TimeoutException,
@@ -34,52 +33,12 @@ root_path = str(Path(__file__).parent.absolute())
 real_root = os.environ.get("LAMBDA_TASK_ROOT", root_path)
 
 PREFFERED_PARTS_INSTRUCTIONS = {
-    "PROMOSALE": "Select the promo items we'll try to add to each PC.",
-    "CAS": "Select your desired case.",
+    "PROMOSALE": "Select the promo items we'll try to add to each PC. We recommend adding any mouse and keyboard promo, and removing the included mouse and keyboard from the cart.",
     "ENGRAVING": "Select if you want an engraving, for the price calculation. Details will be erased.",
-    "CS_FAN": "Select your desired fan.",
-    "CPU": "Select your desired CPU.",
-    "OVERCLOCK": "Select your desired overclocking preferences.",
-    "FAN": "Select your desired fan.",
-    "COOLANT": "Select any desired coolant.",
-    "MEMORY": "Select your desired memory.",
-    "VIDEO": "Select your desired video card.",
-    "FREEBIE_VC": "Select any freebies we should try to add to each PC.",
-    "POWERSUPPLY": "Select your desired power supply.",
-    "MOTHERBOARD": "Select your desired motherboard.",
-    "HDD": "Select your desired hard drive.",
-    "HDD2": "Select your desired secondary hard drive.",
-    "USBHD": "Select any USB hard drives.",
-    "INSTRUCTION": "Select any freebies we should try to add to each PC.",
-    "WTV": "Select any wireless TV peripherals.",
-    "CC": "",
-    "WNC": "Select any wireless network cards.",
-    "SOUND": "Select any sound cards.",
-    "MONITOR": "",
-    "FREEBIE_MN": "",
-    "CABLE": "",
-    "SPEAKERS": "",
-    "NETWORK": "",
-    "KEYBOARD": "",
-    "MOUSE": "",
-    "MOPAD": "",
-    "HEADSET": "",
-    "MICROPHONE": "Select any desired microphone.",
-    "APPAREL": "",
-    "GEAR": "",
-    "WAP": "",
-    "VIDEOCAMERA": "Select any desired video camera.",
-    "UPS": "Select any desired Power Supplies.",
-    "IUSB": "",
-    "XUSB": "",
-    "OS": "",
-    "RECOVERYUSB": "",
-    "PRO_WIRING": "",
-    "CARE": "",
+    "CPU": "We recommend setting this as a required part.",
+    "VIDEO": "We recommend setting this as a required part.",
+    "MOTHERBOARD": "We recommend setting this as a required part.",
     "WARRANTY": "Premium Warranty is probably worth it.",
-    "SERVICE": "",
-    "RUSH": "",
-    "None": None,
 }
 
 
@@ -142,7 +101,8 @@ class CyberpowerPcBuilderBot:
                     try:
                         elem.click()
                     except ElementNotInteractableException:
-                        return None
+                        logger.error(f'Cannot click {key}')
+                        pass
                     try:
                         time.sleep(0.25)
                         btn = self.driver.find_element_by_class_name(
@@ -291,18 +251,19 @@ class CyberpowerPcBuilderBot:
             )
             custom_wait = WebDriverWait(self.driver, 120)
             section_instructions = PREFFERED_PARTS_INSTRUCTIONS.get(section_name, None)
-            has_finished_section = section_instructions == None
+            has_finished_section = False
             if not has_finished_section:
                 self.driver.execute_script(button_script)
-                self.driver.execute_script(
-                    f'alert("{section_instructions} Mark a part as required to skip any incompatible builds. Click the Finish Section button when ready.")'
-                )
-                while True:
-                    try:
-                        self.driver.switch_to.alert
-                        time.sleep(1)
-                    except NoAlertPresentException:
-                        break
+                if section_instructions is not None and section_instructions != '':
+                    self.driver.execute_script(
+                        f'alert("{section_instructions} Mark a part as required to skip any incompatible builds. Click the Finish Section button when ready.")'
+                    )
+                    while True:
+                        try:
+                            self.driver.switch_to.alert
+                            time.sleep(1)
+                        except NoAlertPresentException:
+                            break
                 section_parts = section.find_elements_by_class_name(
                     "grd-part"
                 ) + section.find_elements_by_class_name("lstv-part")
@@ -351,12 +312,15 @@ class CyberpowerPcBuilderBot:
                     except NoSuchElementException:
                         required = False
                     print(part_id, required)
+                    # if 'grd_part' not in part_id:
+                    #     part_id = part_id.replace('part_', 'rad_', 1)
                     selected_parts[part_id] = required
         return selected_parts
 
 
 def by_amount(item):
     return int(item[1]["amount"].strip("$"))
+
 
 def get_latest_pc():
     perfect_pc = None
@@ -366,12 +330,14 @@ def get_latest_pc():
             print("Loaded from file")
             return perfect_pc
 
+
 def get_bad_urls(hashed):
     if os.path.exists(f"cyber-bad-urls-{hashed}.txt"):
         with open(f"cyber-bad-urls-{hashed}.txt", "r+") as f:
             bad_urls = f.read().split("\n")
             return bad_urls
     return []
+
 
 class CyberPowerPcBotController:
     """A program to help build a cost-effective PC."""
@@ -382,7 +348,7 @@ class CyberPowerPcBotController:
         # Filter this list for only the PCs I want
         urls = bot.get_urls()
         bestest = {}
-        lowest = ''
+        lowest = ""
         lowest_price = 1000000000
 
         total_time = 0
@@ -404,11 +370,13 @@ class CyberPowerPcBotController:
                 built_pc = None
             if built_pc is not None:
                 bestest[url] = built_pc
-                amount = int(built_pc.get('amount', '$-1').replace('$', ''))
+                amount = int(built_pc.get("amount", "$-1").replace("$", ""))
                 if amount > 0 and amount < lowest_price:
                     lowest = url
                     lowest_price = amount
-                    logger.info(f"The lowest PC is now: ${lowest_price}\nConfigurator URL: ${lowest}")
+                    logger.info(
+                        f"The lowest PC is now: ${lowest_price}\nConfigurator URL: ${lowest}"
+                    )
             else:
                 bad_urls.append(url)
                 logger.error("Could not get amount for URL: {}".format(url))
