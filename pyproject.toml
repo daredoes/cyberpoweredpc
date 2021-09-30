@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cyberpoweredpc"
-version = "0.0.3"
+version = "0.0.4"
 description = "A cyber-powered PC builder for cyberpowerpc.com"
 authors = ["DareDoes"]
 license = "GNU GPL V3"

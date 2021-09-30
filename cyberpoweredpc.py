@@ -1,6 +1,3 @@
-"""A cyber-powered PC builder for cyberpowerpc.com"""
-__version__ = "0.0.4"
-
 import os
 from pathlib import Path
 import json
