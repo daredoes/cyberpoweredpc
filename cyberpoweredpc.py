@@ -362,12 +362,11 @@ def get_preferred_path():
 
 class CyberPowerPcBotController:
     """A program to help build a cost-effective PC."""
-    def __init__(self):
-        self.path = get_preferred_path()
 
     def clear_bad_urls(self):
+        preferred_path = get_preferred_path()
         """Run this command to reset the URLs marked as invalid when trying to find the ideal PC."""
-        filepaths = glob.glob(f"{self.path}/cyber-bad-urls-*.txt")
+        filepaths = glob.glob(f"{preferred_path}/cyber-bad-urls-*.txt")
         len_filepaths = len(filepaths)
         if len_filepaths > 0:
             logger.info(f"Clearing {len_filepaths} files")
@@ -379,10 +378,11 @@ class CyberPowerPcBotController:
 
     def set_path(self):
         """Use this command to change the location of the results folder."""
-        self.path = set_preferred_path()
+        set_preferred_path()
 
     def find(self):
         """Use this command to find your ideal PC, at the ideal price! Will run `create` if not run at least once prior."""
+        preferred_path = get_preferred_path()
         bot = CyberpowerPcBuilderBot()
         # Filter this list for only the PCs I want
         urls = bot.get_urls()
@@ -425,11 +425,11 @@ class CyberPowerPcBotController:
             total_time += elapsed_time
         now = datetime.now().strftime("%m-%d-%y")
         logger.info(f"Processed {count} PCs in {total_time} seconds")
-        with open(f"{self.path}/cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
+        with open(f"{preferred_path}/cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
             f.write("\n".join(bad_urls))
-        with open(f"{self.path}/cyber-results-{hash_perfect_pc}_{now}.json", "w") as f:
+        with open(f"{preferred_path}/cyber-results-{hash_perfect_pc}_{now}.json", "w") as f:
             json.dump(dict(sorted(bestest.items(), key=by_amount)), f, indent=4)
-        logger.info("Dumped sorted results to file in folder " + self.path)
+        logger.info("Dumped sorted results to file in folder " + preferred_path)
 
     def create(self):
         """Use this command to create your ideal custom PC, meaning the parts not price!"""
