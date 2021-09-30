@@ -1,12 +1,17 @@
 [tool.poetry]
 name = "cyberpoweredpc"
-version = "0.0.5"
+version = "0.0.6"
 description = "A cyber-powered PC builder for cyberpowerpc.com"
 authors = ["DareDoes"]
-license = "GNU GPL V3"
+license = "GPL-3.0-only"
+readme = "README.md"
+
+repository = "https://github.com/daredoes/cyberpoweredpc"
+homepage = "https://github.com/daredoes/cyberpoweredpc"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+easygui = "0.98.2"
 fire = "^0.4.0"
 selenium = "3.141.0"
 chromedriver-autoinstaller = "^0.2.2"

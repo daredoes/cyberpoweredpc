@@ -7,6 +7,7 @@ import tempfile
 
 import chromedriver_autoinstaller
 
+import easygui
 import glob
 import fire
 
@@ -201,9 +202,10 @@ class CyberpowerPcBuilderBot:
                 pass
         selected_parts = self.select_preferred_pc_parts()
         now = datetime.now().strftime("%m-%d-%y")
-        with open(f"{real_root}/pc_build_{now}.json", "w") as f:
+        results_path = get_preferred_path()
+        with open(f"{results_path}/pc_build_{now}.json", "w") as f:
             json.dump(selected_parts, f, indent=4)
-        with open(f"{real_root}/pc_build_latest.json", "w") as f:
+        with open(f"{results_path}/pc_build_latest.json", "w") as f:
             json.dump(selected_parts, f, indent=4)
         return selected_parts
 
@@ -324,7 +326,8 @@ def by_amount(item):
 
 def get_latest_pc():
     perfect_pc = None
-    for filepath in glob.glob(f"{real_root}/pc_build_latest.json"):
+    results_path = get_preferred_path()
+    for filepath in glob.glob(f"{results_path}/pc_build_latest.json"):
         with open(filepath, "r") as f:
             perfect_pc = json.load(f)
             print("Loaded from file")
@@ -332,15 +335,51 @@ def get_latest_pc():
 
 
 def get_bad_urls(hashed):
-    if os.path.exists(f"cyber-bad-urls-{hashed}.txt"):
-        with open(f"cyber-bad-urls-{hashed}.txt", "r+") as f:
+    results_path = get_preferred_path()
+    if os.path.exists(f"{results_path}/cyber-bad-urls-{hashed}.txt"):
+        with open(f"{results_path}/cyber-bad-urls-{hashed}.txt", "r+") as f:
             bad_urls = f.read().split("\n")
             return bad_urls
     return []
 
+def set_preferred_path():
+    preferred_path = None
+    while preferred_path is None:
+        easygui.msgbox(msg="Select a folder to store our results in.")
+        preferred_path = easygui.diropenbox(msg="Select a folder to store our results in.", title="Select A Results Folder")
+        print(preferred_path)
+    with open(f"{real_root}/results-path.txt", "w") as f:
+        f.write(preferred_path)
+    return preferred_path
+
+def get_preferred_path():
+    if os.path.exists(f"{real_root}/results-path.txt"):
+        with open(f"{real_root}/results-path.txt", "r") as f:
+            preferred_path = f.read()
+            if os.path.exists(preferred_path):
+                return preferred_path
+    return set_preferred_path()
 
 class CyberPowerPcBotController:
     """A program to help build a cost-effective PC."""
+    def __init__(self):
+        self.path = get_preferred_path()
+
+    def clear_bad_urls(self):
+        """Run this command to reset the URLs marked as invalid when trying to find the ideal PC."""
+        filepaths = glob.glob(f"{self.path}/cyber-bad-urls-*.txt")
+        len_filepaths = len(filepaths)
+        if len_filepaths > 0:
+            logger.info(f"Clearing {len_filepaths} files")
+        else:
+            logger.info(f"No files to clear")
+        for i, filepath in enumerate(filepaths, start=1):
+            os.remove(filepath)
+            logger.info(f"Removed file {i}/{len_filepaths}: " + filepath)
+
+    def set_path(self):
+        """Use this command to change the location of the results folder."""
+        self.path = set_preferred_path()
 
     def find(self):
         """Use this command to find your ideal PC, at the ideal price! Will run `create` if not run at least once prior."""
@@ -386,11 +425,11 @@ class CyberPowerPcBotController:
             total_time += elapsed_time
         now = datetime.now().strftime("%m-%d-%y")
         logger.info(f"Processed {count} PCs in {total_time} seconds")
-        with open(f"cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
+        with open(f"{self.path}/cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
             f.write("\n".join(bad_urls))
-        with open(f"cyber-results_{now}.json", "w") as f:
+        with open(f"{self.path}/cyber-results-{hash_perfect_pc}_{now}.json", "w") as f:
             json.dump(dict(sorted(bestest.items(), key=by_amount)), f, indent=4)
-        logger.info("Dumped results to file")
+        logger.info("Dumped sorted results to file in folder " + self.path)
 
     def create(self):
         """Use this command to create your ideal custom PC, meaning the parts not price!"""
