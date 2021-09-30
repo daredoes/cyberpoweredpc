@@ -1,5 +1,5 @@
 """A cyber-powered PC builder for cyberpowerpc.com"""
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 import os
 from pathlib import Path
@@ -12,6 +12,7 @@ import requests
 import chromedriver_autoinstaller
 
 import glob
+import fire
 
 from collections import defaultdict
 
@@ -30,8 +31,6 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
-from pyperclip import copy, paste
 
 logging.basicConfig()
 logger = logging.getLogger()
@@ -342,6 +341,7 @@ class CyberpowerPcBuilderBot:
             json.dump(selected_parts, f, indent=4)
         with open(f"{real_root}/pc_build_latest.json", "w") as f:
             json.dump(selected_parts, f, indent=4)
+        return selected_parts
 
     @start_message("Selecting Preferred PC Parts")
     def select_preferred_pc_parts(self):
@@ -476,86 +476,71 @@ def send_results_to_sheets(data):
         logger.error(e, exc_info=e)
 
 
-def main():
-    bot = CyberpowerPcBuilderBot()
-    # Filter this list for only the PCs I want
-    urls = bot.get_urls()
-    bestest = {}
-
-    total_time = 0
-    bad_urls = []
-    perfect_pc = None
-    for filepath in glob.glob(f"{real_root}/pc_build_latest.json"):
-        with open(filepath, 'r') as f:
-            perfect_pc = json.load(f)
-            print('Loaded from file')
-    hash_perfect_pc = hash(str(perfect_pc.keys()))
-    if os.path.exists(f"cyber-bad-urls-{hash_perfect_pc}.txt"):
-        with open(f"cyber-bad-urls-{hash_perfect_pc}.txt", "r+") as f:
-            bad_urls = f.read().split("\n")
-    urls = list(set(urls).difference(bad_urls))
-    count = len(urls)
-    logger.info(f"Processing {count} Possible PCs")
-    headers = defaultdict(bool)
-    for index, url in enumerate(urls, start=1):
-        start = time.time()
-        logger.info(f"Processing PC {index}/{count}")
-        try:
-            amount = bot.build_pc(url, perfect=True, pc=perfect_pc)
-        except Exception as e:
-            print(e)
-            amount = None
-        if amount is not None:
-            bestest[url] = amount
-            for key in amount.get("summary", {}).keys():
-                headers[key] = True
-        else:
-            bad_urls.append(url)
-            logger.error("Could not get amount for URL: {}".format(url))
-        end = time.time()
-        elapsed_time = end - start
-        logger.info(f"Processed PC {index}/{count} in {elapsed_time} seconds")
-        total_time += elapsed_time
-    now = datetime.now().strftime("%m-%d-%y")
-    # bestest['time'] = elapsed_time
-    logger.info(f"Processed {count} PCs in {total_time} seconds")
-    with open(f"cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
-        f.write("\n".join(bad_urls))
-    with open(f"cyber-results_{now}.json", "w") as f:
-        json.dump(dict(sorted(bestest.items(), key=by_amount)), f, indent=4)
-    logger.info("Dumped results to file")
-    logger.info("Sending results to sheets")
-    csv_data = data_to_csv(bestest, list(headers.keys()))
-    send_results_to_sheets(csv_data)
-
-
 def by_amount(item):
     return int(item[1]["amount"].strip("$"))
 
+class CyberPowerPcBotController():
+    """A program to help build a cost-effective PC."""
 
-def cut_urls():
-    data = paste()
-    a = [x for x in data.split("\n") if 'href="/system/' in x]
-    b = list(
-        set([x.split('href="')[-1].split('"')[0] for x in a if "quickview" not in x])
-    )
-    copy(",\n".join(['"{}"'.format(x) for x in b]))
-    return b
-
-
-async def get_pc(url, perfect=True):
-    try:
+    def find(self):
+        """Use this command to find your ideal PC, at the ideal price! Will run `create` if not run at least once prior."""
         bot = CyberpowerPcBuilderBot()
-        return bot.build_pc(f"https://cyberpowerpc.com{url}", perfect=perfect)
-    except Exception as e:
-        print(e)
+        # Filter this list for only the PCs I want
+        urls = bot.get_urls()
+        bestest = {}
 
+        total_time = 0
+        bad_urls = []
+        perfect_pc = None
+        for filepath in glob.glob(f"{real_root}/pc_build_latest.json"):
+            with open(filepath, 'r') as f:
+                perfect_pc = json.load(f)
+                print('Loaded from file')
+        if not perfect_pc:
+            perfect_pc = bot.select_pc_parts()
+        hash_perfect_pc = hash(str(perfect_pc.keys()))
+        if os.path.exists(f"cyber-bad-urls-{hash_perfect_pc}.txt"):
+            with open(f"cyber-bad-urls-{hash_perfect_pc}.txt", "r+") as f:
+                bad_urls = f.read().split("\n")
+        urls = list(set(urls).difference(bad_urls))
+        count = len(urls)
+        logger.info(f"Processing {count} Possible PCs")
+        headers = defaultdict(bool)
+        for index, url in enumerate(urls, start=1):
+            start = time.time()
+            logger.info(f"Processing PC {index}/{count}")
+            try:
+                amount = bot.build_pc(url, perfect=True, pc=perfect_pc)
+            except Exception as e:
+                print(e)
+                amount = None
+            if amount is not None:
+                bestest[url] = amount
+                for key in amount.get("summary", {}).keys():
+                    headers[key] = True
+            else:
+                bad_urls.append(url)
+                logger.error("Could not get amount for URL: {}".format(url))
+            end = time.time()
+            elapsed_time = end - start
+            logger.info(f"Processed PC {index}/{count} in {elapsed_time} seconds")
+            total_time += elapsed_time
+        now = datetime.now().strftime("%m-%d-%y")
+        logger.info(f"Processed {count} PCs in {total_time} seconds")
+        with open(f"cyber-bad-urls-{hash_perfect_pc}.txt", "w") as f:
+            f.write("\n".join(bad_urls))
+        with open(f"cyber-results_{now}.json", "w") as f:
+            json.dump(dict(sorted(bestest.items(), key=by_amount)), f, indent=4)
+        logger.info("Dumped results to file")
+        # logger.info("Sending results to sheets")
+        # csv_data = data_to_csv(bestest, list(headers.keys()))
+        # send_results_to_sheets(csv_data)
 
-def test():
-    bot = CyberpowerPcBuilderBot()
-    print(bot.select_pc_parts())
+    def create(self):
+        """Use this command to create your ideal custom PC, meaning the parts not price!"""
+        bot = CyberpowerPcBuilderBot()
+        bot.select_pc_parts()
 
 
 if __name__ == "__main__":
-    main()
-    # test()
+    fire.Fire(CyberPowerPcBotController)
