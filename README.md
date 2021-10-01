@@ -1,6 +1,11 @@
 # Cyber-Powered PC
 #### A cyber-powered PC builder for cyberpowerpc.com
 
+## Why?
+
+The same final build for a custom PC can be reached with different total amounts based on the starting point chosen on cyberpowerpc.com
+<img width="773" alt="Screen Shot 2021-09-30 at 3 28 58 PM" src="https://user-images.githubusercontent.com/6538753/135551933-557ab7a9-4529-458c-b5ea-53e084baedbf.png">
+
 ## Install
 ```bash
 pip3 install cyberpoweredpc
